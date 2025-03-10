@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 2
   tags:
   - JumpPad
+  - Ground
   layers:
   - Default
   - TransparentFX
