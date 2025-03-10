@@ -5,9 +5,10 @@ using UnityEngine;
 public class PlayerMove : MonoBehaviour
 {
     public float moveSpeed = 5f; // 이동 속도
-    public float turnSpeed = 700f; // 회전 속도
+    public float turnSpeed = 10f; // 회전 속도
     public float jumpForce = 8f; // 점프 힘
-    public float gravity = 9.81f; // 중력 값
+    public float gravity = 8f; // 중력 값
+    public Transform cameraTransform; // 카메라 Transform (TPS 카메라 연결)
 
     private CharacterController characterController;
     private Vector3 moveDirection;
@@ -15,34 +16,43 @@ public class PlayerMove : MonoBehaviour
 
     void Start()
     {
-        // CharacterController 컴포넌트 가져오기
         characterController = GetComponent<CharacterController>();
     }
 
     void Update()
     {
-        // 입력값을 기반으로 캐릭터 이동 방향 설정
-        float horizontal = Input.GetAxis("Horizontal"); // A, D 또는 좌, 우 화살표
-        float vertical = Input.GetAxis("Vertical"); // W, S 또는 상, 하 화살표
+        if (cameraTransform == null)
+            return;
 
-        // 이동 방향 계산
-        moveDirection = new Vector3(horizontal, 0f, vertical);
-        moveDirection.Normalize(); // 방향 벡터 정규화
+        // 입력값 받기
+        float horizontal = Input.GetAxis("Horizontal"); // A, D 이동
+        float vertical = Input.GetAxis("Vertical"); // W, S 이동
 
-        // 이동 처리
+        // 카메라의 앞뒤/좌우 벡터 계산
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+
+        // Y축 방향 제거 (수평 이동만)
+        forward.y = 0;
+        right.y = 0;
+        forward.Normalize();
+        right.Normalize();
+
+        // 이동 방향 계산 (카메라 기준)
+        moveDirection = (forward * vertical + right * horizontal).normalized;
+
+        // 플레이어 회전 (움직이는 방향으로)
         if (moveDirection.magnitude >= 0.1f)
         {
-            // 캐릭터의 이동 방향을 회전
-            float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
-            float angle = Mathf.LerpAngle(transform.eulerAngles.y, targetAngle, turnSpeed * Time.deltaTime);
-            transform.rotation = Quaternion.Euler(0f, angle, 0f);
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
         }
 
         // 중력 및 점프 처리
         if (characterController.isGrounded)
         {
             verticalVelocity = -gravity * Time.deltaTime;
-            if (Input.GetButtonDown("Jump")) // 스페이스바 점프
+            if (Input.GetButtonDown("Jump"))
             {
                 verticalVelocity = jumpForce;
             }
@@ -52,11 +62,11 @@ public class PlayerMove : MonoBehaviour
             verticalVelocity -= gravity * Time.deltaTime;
         }
 
-        // 최종 이동 벡터 계산
-        Vector3 move = transform.forward * moveSpeed * Time.deltaTime;
-        move.y = verticalVelocity * Time.deltaTime;
-        characterController.Move(move);
+        // 최종 이동 적용
+        Vector3 move = moveDirection * moveSpeed + Vector3.up * verticalVelocity;
+        characterController.Move(move * Time.deltaTime);
     }
 }
+
 
 
